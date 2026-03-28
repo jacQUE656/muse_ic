@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:2020";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://muse-backend-1.onrender.com";
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
