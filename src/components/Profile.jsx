@@ -17,6 +17,7 @@ const Profile = () => {
     const [showSuccess, setShowSuccess] = useState(false);
     const [shake, setShake] = useState(false);
     const { logout } = useAuth();
+
     // Form States
     const [formData, setFormData] = useState({ firstname: '', lastname: '', phonenumber: '' });
     const [imageFile, setImageFile] = useState(null);
@@ -28,18 +29,20 @@ const Profile = () => {
     const fetchProfile = async () => {
         try {
             const token = localStorage.getItem("token");
+            // This now calls your "Smart" endpoint in the UserController
             const { data } = await axios.get(`${API_URL}/api/user/profile`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
             setUserData(data);
             setFormData({
                 firstname: data.firstname || '',
                 lastname: data.lastname || '',
-                phonenumber: data.phone || ''
+                phonenumber: data.phonenumber || ''
             });
             setPreviewUrl(data.profileImage);
         } catch (error) {
-            toast.error("Session expired. Please login again.");
+            toast.error("Session expired or profile not found.");
         } finally {
             setLoading(false);
         }
@@ -72,6 +75,7 @@ const Profile = () => {
 
         setIsSubmitting(true);
         const data = new FormData();
+        // Matching your @RequestPart("request") String request
         const jsonRequest = JSON.stringify(formData);
         
         data.append("request", new Blob([jsonRequest], { type: "application/json" }));
@@ -93,11 +97,14 @@ const Profile = () => {
             }, 2000);
         } catch (error) {
             triggerErrorShake();
-            toast.error("Update failed. Check your connection.");
+            toast.error("Update failed.");
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    // Determine if the user is OAuth2 (usually they don't have a numeric ID or have a 'sub' attribute)
+    const isExternalUser = userData?.id?.length > 15 || !userData?.id;
 
     if (loading) return (
         <div className="h-screen flex items-center justify-center bg-black">
@@ -128,9 +135,10 @@ const Profile = () => {
             </AnimatePresence>
 
             {/* HEADER SECTION */}
-            <div className={`relative bg-gray h-80 flex flex-col items-center justify-center transition-all duration-700 ${isEditing ? 'bg-gray' : 'bg-gradient-to-b from-gray-500/20 to-black'}`}>
+            <div className={`relative h-80 flex flex-col items-center justify-center transition-all duration-700 ${isEditing ? 'bg-neutral-900/50' : 'bg-gradient-to-b from-neutral-800/20 to-black'}`}>
                 
-                {!isEditing && (
+                {/* Hide edit button for OAuth users if you don't support local updates for them */}
+                {!isEditing && !isExternalUser && (
                     <button 
                         onClick={() => setIsEditing(true)}
                         className="absolute top-10 right-10 p-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 transition-all group"
@@ -139,11 +147,11 @@ const Profile = () => {
                     </button>
                 )}
 
-                <div className="relative ">
+                <div className="relative">
                     <motion.img 
                         layoutId="avatar"
                         src={previewUrl || 'https://via.placeholder.com/150'} 
-                        className={`w-36 h-36 rounded-full object-cover border-4 shadow-2xl transition-all duration-500 ${isEditing ? 'border-green-500 scale-110' : 'border-white/20'}`}
+                        className={`w-36 h-36 rounded-full object-cover border-4 shadow-2xl transition-all duration-500 ${isEditing ? 'border-green-500 scale-110' : 'border-white/10'}`}
                     />
                     {isEditing && (
                         <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full cursor-pointer backdrop-blur-sm animate-in zoom-in-75 duration-300">
@@ -157,19 +165,12 @@ const Profile = () => {
                     {isEditing ? 'Update Profile' : `${userData?.firstname} ${userData?.lastname}`}
                 </h1>
                 
-                <AnimatePresence mode="wait">
-                    {!isEditing && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-2 mt-4 px-5 py-1.5 bg-green-500/10 rounded-full border border-green-500/20"
-                        >
-                            <Award size={14} className="text-green-500" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">
-                                {userData?.role || 'Listener'}
-                            </span>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <div className="flex items-center gap-2 mt-4 px-5 py-1.5 bg-green-500/10 rounded-full border border-green-500/20">
+                    <Award size={14} className="text-green-500" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">
+                        {isExternalUser ? 'OAuth2 Listener' : (userData?.role || 'Listener')}
+                    </span>
+                </div>
             </div>
 
             {/* CONTENT AREA */}
@@ -233,9 +234,9 @@ const Profile = () => {
                         <motion.div 
                             key="profile-display"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                            className="space-y-4 bg-gray p-10 rounded-[2.5rem] border border-white/5 shadow-3xl"
+                            className="space-y-4"
                         >
-                            <div className="my-10 bg-gray  p-7 rounded-[2rem] border border-white/5 flex items-center justify-between group hover:border-white/10 transition-colors">
+                            <div className="bg-[#0A0A0A] p-7 rounded-[2rem] border border-white/5 flex items-center justify-between group hover:border-white/10 transition-colors">
                                 <div className="flex items-center gap-5">
                                     <div className="p-3 bg-green-500/10 rounded-2xl text-green-500"><Mail size={22} /></div>
                                     <div>
@@ -250,13 +251,13 @@ const Profile = () => {
                                     <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><Phone size={22} /></div>
                                     <div>
                                         <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Mobile Contact</p>
-                                        <p className="font-bold text-gray-200">{userData?.phone || 'No phone linked'}</p>
+                                        <p className="font-bold text-gray-200">{userData?.phonenumber || 'No phone linked'}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <button 
-                                onClick={() => { logout(); window.location.reload(); }}
+                                onClick={() => logout()}
                                 className="w-full mt-10 p-6 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 rounded-[2rem] flex items-center justify-center gap-4 text-red-500 transition-all group"
                             >
                                 <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
